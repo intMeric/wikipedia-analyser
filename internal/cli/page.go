@@ -4,10 +4,11 @@ package cli
 import (
 	"fmt"
 	"os"
-	"wikianalyser/internal/analyzer"
-	"wikianalyser/internal/client"
-	"wikianalyser/internal/formatter"
 
+	"github.com/intMeric/wikipedia-analyser/internal/client"
+
+	"github.com/intMeric/wikipedia-analyser/internal/analyzer"
+	"github.com/intMeric/wikipedia-analyser/internal/formatter"
 	"github.com/spf13/cobra"
 )
 

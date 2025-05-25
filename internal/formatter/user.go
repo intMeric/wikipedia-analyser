@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"wikianalyser/internal/models"
 
 	"github.com/fatih/color"
+	"github.com/intMeric/wikipedia-analyser/internal/models"
 	"gopkg.in/yaml.v2"
 )
 

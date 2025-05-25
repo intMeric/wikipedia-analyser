@@ -6,8 +6,10 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"wikianalyser/internal/client"
-	"wikianalyser/internal/models"
+
+	"github.com/intMeric/wikipedia-analyser/internal/client"
+
+	"github.com/intMeric/wikipedia-analyser/internal/models"
 )
 
 // UserAnalyzer analyzes Wikipedia user data

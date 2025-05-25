@@ -4,7 +4,8 @@ package main
 import (
 	"fmt"
 	"os"
-	"wikianalyser/internal/cli"
+
+	"github.com/intMeric/wikipedia-analyser/internal/cli"
 )
 
 func main() {

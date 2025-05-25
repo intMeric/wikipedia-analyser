@@ -6,9 +6,11 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"wikianalyser/internal/client"
-	"wikianalyser/internal/models"
-	"wikianalyser/internal/utils"
+
+	"github.com/intMeric/wikipedia-analyser/internal/client"
+
+	"github.com/intMeric/wikipedia-analyser/internal/models"
+	"github.com/intMeric/wikipedia-analyser/internal/utils"
 )
 
 // PageAnalyzer analyzes Wikipedia page data

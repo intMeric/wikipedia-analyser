@@ -4,9 +4,9 @@ package client
 import (
 	"fmt"
 	"time"
-	"wikianalyser/internal/models"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/intMeric/wikipedia-analyser/internal/models"
 	"github.com/tidwall/gjson"
 )
 
