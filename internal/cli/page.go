@@ -12,10 +12,13 @@ import (
 )
 
 var (
-	pageOutputFormat string
-	pageLanguage     string
-	pageSaveToFile   string
-	pageAnalyzeDays  int
+	pageOutputFormat    string
+	pageLanguage        string
+	pageSaveToFile      string
+	pageAnalyzeDays     int
+	pageMaxRevisions    int
+	pageMaxContributors int
+	pageMaxHistory      int
 )
 
 // pageCmd represents the page command
@@ -35,7 +38,12 @@ var analyzeCmd = &cobra.Command{
 - Top contributors and their behavior
 - Conflict detection and edit wars
 - Quality metrics and suspicion scoring
-- Recent activity analysis`,
+- Recent activity analysis
+
+Configuration options:
+  --max-revisions: Number of revisions to analyze (default: 100)
+  --max-contributors: Number of contributors to analyze (default: 20)
+  --max-history: Days of detailed history to analyze (default: 30)`,
 	Args: cobra.ExactArgs(1),
 	RunE: runPageAnalyze,
 }
@@ -48,7 +56,11 @@ var historyCmd = &cobra.Command{
 - Recent revisions and patterns
 - Edit frequency over time
 - Size changes and content evolution
-- Contributor activity timeline`,
+- Contributor activity timeline
+
+Configuration options:
+  --max-revisions: Number of revisions to analyze (default: 100)
+  --max-history: Days of detailed history to analyze (default: 30)`,
 	Args: cobra.ExactArgs(1),
 	RunE: runPageHistory,
 }
@@ -61,7 +73,11 @@ var conflictsCmd = &cobra.Command{
 - Reversion detection
 - Conflicting users identification
 - Edit war periods
-- Controversy scoring`,
+- Controversy scoring
+
+Configuration options:
+  --max-revisions: Number of revisions to analyze (default: 100)
+  --max-history: Days of detailed history to analyze (default: 30)`,
 	Args: cobra.ExactArgs(1),
 	RunE: runPageConflicts,
 }
@@ -77,18 +93,27 @@ func init() {
 	analyzeCmd.Flags().StringVarP(&pageLanguage, "lang", "l", "en", "Wikipedia language (en, fr, de, etc.)")
 	analyzeCmd.Flags().StringVar(&pageSaveToFile, "save", "", "save result to file")
 	analyzeCmd.Flags().IntVar(&pageAnalyzeDays, "days", 30, "number of days to analyze")
+	analyzeCmd.Flags().IntVar(&pageMaxRevisions, "max-revisions", 100, "maximum number of revisions to analyze")
+	analyzeCmd.Flags().IntVar(&pageMaxContributors, "max-contributors", 20, "maximum number of contributors to analyze")
+	analyzeCmd.Flags().IntVar(&pageMaxHistory, "max-history", 30, "maximum number of days for detailed history")
 
 	// Flags for history command
 	historyCmd.Flags().StringVarP(&pageOutputFormat, "output", "o", "table", "output format (table, json, yaml)")
 	historyCmd.Flags().StringVarP(&pageLanguage, "lang", "l", "en", "Wikipedia language (en, fr, de, etc.)")
 	historyCmd.Flags().StringVar(&pageSaveToFile, "save", "", "save result to file")
 	historyCmd.Flags().IntVar(&pageAnalyzeDays, "days", 30, "number of days to analyze")
+	historyCmd.Flags().IntVar(&pageMaxRevisions, "max-revisions", 100, "maximum number of revisions to analyze")
+	historyCmd.Flags().IntVar(&pageMaxContributors, "max-contributors", 20, "maximum number of contributors to analyze")
+	historyCmd.Flags().IntVar(&pageMaxHistory, "max-history", 30, "maximum number of days for detailed history")
 
 	// Flags for conflicts command
 	conflictsCmd.Flags().StringVarP(&pageOutputFormat, "output", "o", "table", "output format (table, json, yaml)")
 	conflictsCmd.Flags().StringVarP(&pageLanguage, "lang", "l", "en", "Wikipedia language (en, fr, de, etc.)")
 	conflictsCmd.Flags().StringVar(&pageSaveToFile, "save", "", "save result to file")
 	conflictsCmd.Flags().IntVar(&pageAnalyzeDays, "days", 30, "number of days to analyze")
+	conflictsCmd.Flags().IntVar(&pageMaxRevisions, "max-revisions", 100, "maximum number of revisions to analyze")
+	conflictsCmd.Flags().IntVar(&pageMaxContributors, "max-contributors", 20, "maximum number of contributors to analyze")
+	conflictsCmd.Flags().IntVar(&pageMaxHistory, "max-history", 30, "maximum number of days for detailed history")
 }
 
 func runPageAnalyze(cmd *cobra.Command, args []string) error {
@@ -97,18 +122,26 @@ func runPageAnalyze(cmd *cobra.Command, args []string) error {
 	// Create Wikipedia client
 	wikiClient := client.NewWikipediaClient(pageLanguage)
 
-	// Create page analyzer
-	pageAnalyzer := analyzer.NewPageAnalyzer(wikiClient)
+	// Create page analysis options
+	analysisOptions := buildAnalyzerOptiosn()
+
+	// Create page analyzer with options
+	pageAnalyzer := analyzer.NewPageAnalyzer(wikiClient, analysisOptions)
 
 	// Retrieve page data
 	fmt.Printf("🔍 Analyzing Wikipedia page: %s\n", pageTitle)
 	fmt.Printf("📡 Fetching data from %s.wikipedia.org...\n", pageLanguage)
-	fmt.Printf("📅 Analyzing last %d days of activity...\n", pageAnalyzeDays)
+	fmt.Printf("📊 Analysis parameters: %d revisions, %d contributors, %d days history\n",
+		pageMaxRevisions, pageMaxContributors, pageMaxHistory)
+	fmt.Printf("👥 Including detailed contributor analysis...\n")
 
 	pageProfile, err := pageAnalyzer.GetPageProfile(pageTitle)
 	if err != nil {
 		return fmt.Errorf("error retrieving page profile: %w", err)
 	}
+
+	fmt.Printf("✅ Analysis completed! Found %d contributors, %d revisions\n",
+		len(pageProfile.Contributors), len(pageProfile.RecentRevisions))
 
 	// Format and display results
 	output, err := formatter.FormatPageProfile(pageProfile, pageOutputFormat)
@@ -136,13 +169,17 @@ func runPageHistory(cmd *cobra.Command, args []string) error {
 	// Create Wikipedia client
 	wikiClient := client.NewWikipediaClient(pageLanguage)
 
-	// Create page analyzer
-	pageAnalyzer := analyzer.NewPageAnalyzer(wikiClient)
+	// Create page analysis options
+	analysisOptions := buildAnalyzerOptiosn()
+
+	// Create page analyzer with options
+	pageAnalyzer := analyzer.NewPageAnalyzer(wikiClient, analysisOptions)
 
 	// Retrieve page data with focus on history
 	fmt.Printf("🔍 Analyzing edit history for: %s\n", pageTitle)
 	fmt.Printf("📡 Fetching revision data from %s.wikipedia.org...\n", pageLanguage)
-	fmt.Printf("📅 Analyzing last %d days...\n", pageAnalyzeDays)
+	fmt.Printf("📊 Analysis parameters: %d revisions, %d days history\n",
+		pageMaxRevisions, pageMaxHistory)
 
 	pageProfile, err := pageAnalyzer.GetPageProfile(pageTitle)
 	if err != nil {
@@ -175,13 +212,17 @@ func runPageConflicts(cmd *cobra.Command, args []string) error {
 	// Create Wikipedia client
 	wikiClient := client.NewWikipediaClient(pageLanguage)
 
-	// Create page analyzer
-	pageAnalyzer := analyzer.NewPageAnalyzer(wikiClient)
+	// Create page analysis options
+	analysisOptions := buildAnalyzerOptiosn()
+
+	// Create page analyzer with options
+	pageAnalyzer := analyzer.NewPageAnalyzer(wikiClient, analysisOptions)
 
 	// Retrieve page data with focus on conflicts
 	fmt.Printf("🔍 Analyzing conflicts for: %s\n", pageTitle)
 	fmt.Printf("📡 Detecting edit wars on %s.wikipedia.org...\n", pageLanguage)
-	fmt.Printf("📅 Analyzing last %d days for conflicts...\n", pageAnalyzeDays)
+	fmt.Printf("📊 Analysis parameters: %d revisions, %d days for conflict detection\n",
+		pageMaxRevisions, pageMaxHistory)
 
 	pageProfile, err := pageAnalyzer.GetPageProfile(pageTitle)
 	if err != nil {
@@ -206,4 +247,13 @@ func runPageConflicts(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func buildAnalyzerOptiosn() analyzer.PageAnalysisOptions {
+	analysisOptions := analyzer.PageAnalysisOptions{
+		NumberOfPageRevisions: pageMaxRevisions,
+		NumberOfDaysHistory:   pageMaxHistory,
+		NumberOfContributors:  pageMaxContributors,
+	}
+	return analysisOptions
 }

@@ -26,14 +26,17 @@ type PageProfile struct {
 
 // TopContributor represents a major contributor to the page
 type TopContributor struct {
-	Username      string    `json:"username"`
-	UserID        int       `json:"user_id,omitempty"`
-	EditCount     int       `json:"edit_count"`
-	FirstEdit     time.Time `json:"first_edit"`
-	LastEdit      time.Time `json:"last_edit"`
-	TotalSizeDiff int       `json:"total_size_diff"`
-	IsAnonymous   bool      `json:"is_anonymous"`
-	IsRegistered  bool      `json:"is_registered"`
+	Username       string    `json:"username"`
+	UserID         int       `json:"user_id,omitempty"`
+	EditCount      int       `json:"edit_count"`
+	FirstEdit      time.Time `json:"first_edit"`
+	LastEdit       time.Time `json:"last_edit"`
+	TotalSizeDiff  int       `json:"total_size_diff"`
+	IsAnonymous    bool      `json:"is_anonymous"`
+	IsRegistered   bool      `json:"is_registered"`
+	SuspicionScore int       `json:"suspicion_score"`
+	SuspicionFlags []string  `json:"suspicion_flags"`
+	AnalysisError  string    `json:"analysis_error,omitempty"`
 }
 
 // Revision represents a single page revision

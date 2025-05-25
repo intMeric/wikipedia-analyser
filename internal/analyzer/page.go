@@ -8,17 +8,30 @@ import (
 	"time"
 	"wikianalyser/internal/client"
 	"wikianalyser/internal/models"
+	"wikianalyser/internal/utils"
 )
 
 // PageAnalyzer analyzes Wikipedia page data
 type PageAnalyzer struct {
-	client *client.WikipediaClient
+	client                *client.WikipediaClient
+	numberOfPageRevisions int // Number of revisions to analyze
+	numberOfDaysHistory   int // Number of days for detailed history
+	numberOfContributors  int // Number of contributors to analyze
+}
+
+type PageAnalysisOptions struct {
+	NumberOfPageRevisions int // Number of revisions to analyze
+	NumberOfDaysHistory   int // Number of days for detailed history
+	NumberOfContributors  int // Number of contributors to analyze
 }
 
 // NewPageAnalyzer creates a new page analyzer
-func NewPageAnalyzer(client *client.WikipediaClient) *PageAnalyzer {
+func NewPageAnalyzer(client *client.WikipediaClient, pageAnalysisOptions PageAnalysisOptions) *PageAnalyzer {
 	return &PageAnalyzer{
-		client: client,
+		client:                client,
+		numberOfPageRevisions: utils.SetOrDefault(pageAnalysisOptions.NumberOfPageRevisions, 100),
+		numberOfDaysHistory:   utils.SetOrDefault(pageAnalysisOptions.NumberOfDaysHistory, 30),
+		numberOfContributors:  utils.SetOrDefault(pageAnalysisOptions.NumberOfContributors, 20),
 	}
 }
 
@@ -31,19 +44,19 @@ func (pa *PageAnalyzer) GetPageProfile(title string) (*models.PageProfile, error
 	}
 
 	// 2. Get recent revisions (last 100)
-	revisions, err := pa.client.GetPageRevisions(title, 100)
+	revisions, err := pa.client.GetPageRevisions(title, pa.numberOfPageRevisions)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve page revisions: %w", err)
 	}
 
 	// 3. Get detailed history for the last 30 days
-	detailedHistory, err := pa.client.GetPageHistory(title, 30)
+	detailedHistory, err := pa.client.GetPageHistory(title, pa.numberOfDaysHistory)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve page history: %w", err)
 	}
 
 	// 4. Get contributors
-	contributors, err := pa.client.GetPageContributors(title, 50)
+	contributors, err := pa.client.GetPageContributors(title, pa.numberOfContributors)
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve contributors: %w", err)
 	}
@@ -168,7 +181,121 @@ func (pa *PageAnalyzer) analyzeContributors(revisions []models.WikiRevision, con
 		topContributors = topContributors[:20]
 	}
 
+	// Analyze each top contributor individually for suspicion scores
+	pa.analyzeContributorSuspicion(topContributors)
+
 	return topContributors
+}
+
+// analyzeContributorSuspicion analyzes each contributor individually for suspicion
+func (pa *PageAnalyzer) analyzeContributorSuspicion(contributors []models.TopContributor) {
+	// Create a user analyzer to analyze each contributor
+	userAnalyzer := NewUserAnalyzer(pa.client)
+
+	// Limit detailed analysis to top 10 contributors to avoid too many API calls
+	limit := len(contributors)
+	if limit > 10 {
+		limit = 10
+	}
+
+	for i := 0; i < limit; i++ {
+		contributor := &contributors[i]
+
+		// Skip anonymous users as they can't be analyzed individually
+		if contributor.IsAnonymous {
+			contributor.SuspicionScore = 0
+			contributor.SuspicionFlags = []string{"ANONYMOUS_USER"}
+			continue
+		}
+
+		// Analyze the user profile
+		userProfile, err := userAnalyzer.GetUserProfile(contributor.Username)
+		if err != nil {
+			contributor.SuspicionScore = -1
+			contributor.AnalysisError = fmt.Sprintf("Analysis failed: %v", err)
+			fmt.Printf("  ⚠️ Failed to analyze %s: %v\n", contributor.Username, err)
+			continue
+		}
+
+		// Use the user's suspicion score and flags
+		contributor.SuspicionScore = userProfile.SuspicionScore
+		contributor.SuspicionFlags = userProfile.SuspicionFlags
+
+		// Add page-specific flags based on contribution patterns
+		pageSpecificFlags := pa.analyzeContributorPageBehavior(*contributor)
+		contributor.SuspicionFlags = append(contributor.SuspicionFlags, pageSpecificFlags...)
+	}
+
+	// For contributors beyond the top 10, set basic suspicion indicators
+	for i := limit; i < len(contributors); i++ {
+		contributor := &contributors[i]
+
+		if contributor.IsAnonymous {
+			contributor.SuspicionScore = 5 // Low suspicion for anonymous
+			contributor.SuspicionFlags = []string{"ANONYMOUS_USER"}
+		} else {
+			// Basic analysis without full API call
+			contributor.SuspicionScore = pa.calculateBasicContributorSuspicion(*contributor)
+			contributor.SuspicionFlags = pa.analyzeContributorPageBehavior(*contributor)
+		}
+	}
+}
+
+// analyzeContributorPageBehavior analyzes contributor behavior specific to this page
+func (pa *PageAnalyzer) analyzeContributorPageBehavior(contributor models.TopContributor) []string {
+	var flags []string
+
+	// High edit concentration on this page
+	if contributor.EditCount > 50 {
+		flags = append(flags, "HIGH_PAGE_ACTIVITY")
+	}
+
+	// Recent account with high activity on this page
+	daysSinceFirstEdit := int(time.Since(contributor.FirstEdit).Hours() / 24)
+	if daysSinceFirstEdit < 7 && contributor.EditCount > 10 {
+		flags = append(flags, "NEW_ACCOUNT_HIGH_PAGE_ACTIVITY")
+	}
+
+	// Very recent activity
+	daysSinceLastEdit := int(time.Since(contributor.LastEdit).Hours() / 24)
+	if daysSinceLastEdit < 1 {
+		flags = append(flags, "VERY_RECENT_ACTIVITY")
+	}
+
+	// Large size changes (could indicate content manipulation)
+	if contributor.TotalSizeDiff > 10000 || contributor.TotalSizeDiff < -5000 {
+		flags = append(flags, "LARGE_CONTENT_CHANGES")
+	}
+
+	return flags
+}
+
+// calculateBasicContributorSuspicion calculates a basic suspicion score without full API analysis
+func (pa *PageAnalyzer) calculateBasicContributorSuspicion(contributor models.TopContributor) int {
+	score := 0
+
+	// Recent account with high activity
+	daysSinceFirstEdit := int(time.Since(contributor.FirstEdit).Hours() / 24)
+	if daysSinceFirstEdit < 30 && contributor.EditCount > 20 {
+		score += 15
+	}
+
+	// Very high activity on single page
+	if contributor.EditCount > 100 {
+		score += 10
+	}
+
+	// Large content changes
+	if contributor.TotalSizeDiff > 15000 || contributor.TotalSizeDiff < -10000 {
+		score += 10
+	}
+
+	// Very recent registration and activity
+	if daysSinceFirstEdit < 7 && contributor.EditCount > 5 {
+		score += 20
+	}
+
+	return score
 }
 
 // analyzeConflicts detects edit wars and conflicts
