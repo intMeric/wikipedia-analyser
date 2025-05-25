@@ -23,7 +23,8 @@ Wikipedia to detect potential manipulations, interference
 and suspicious behavior.
 
 Usage examples:
-  wikiosint user profile username`,
+  wikiosint user profile username
+  wikiosint user activity username --days 30`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -47,6 +48,7 @@ func init() {
 
 	// Add subcommands
 	rootCmd.AddCommand(userCmd)
+	rootCmd.AddCommand(pageCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.

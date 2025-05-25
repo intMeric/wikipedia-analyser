@@ -209,3 +209,260 @@ func (w *WikipediaClient) SetTimeout(timeout time.Duration) {
 func (w *WikipediaClient) Language() string {
 	return w.language
 }
+
+// GetPageInfo retrieves basic page information
+func (w *WikipediaClient) GetPageInfo(title string) (*models.WikiPageInfo, error) {
+	params := map[string]string{
+		"action": "query",
+		"titles": title,
+		"prop":   "info",
+		"format": "json",
+	}
+
+	resp, err := w.client.R().
+		SetQueryParams(params).
+		Get(w.baseURL)
+
+	if err != nil {
+		return nil, fmt.Errorf("API request error: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("non-200 API response: %d", resp.StatusCode())
+	}
+
+	// Parse with gjson for fast extraction
+	body := string(resp.Body())
+	pages := gjson.Get(body, "query.pages")
+
+	if !pages.Exists() {
+		return nil, fmt.Errorf("page not found: %s", title)
+	}
+
+	// Get the first (and only) page from the response
+	var pageInfo models.WikiPageInfo
+	pages.ForEach(func(key, value gjson.Result) bool {
+		// Check if page exists
+		if gjson.Get(value.String(), "missing").Exists() {
+			return false // Page doesn't exist
+		}
+
+		pageInfo = models.WikiPageInfo{
+			PageID:    int(gjson.Get(value.String(), "pageid").Int()),
+			NS:        int(gjson.Get(value.String(), "ns").Int()),
+			Title:     gjson.Get(value.String(), "title").String(),
+			Touched:   gjson.Get(value.String(), "touched").String(),
+			LastRevID: int(gjson.Get(value.String(), "lastrevid").Int()),
+			Length:    int(gjson.Get(value.String(), "length").Int()),
+		}
+		return false // Break after first iteration
+	})
+
+	if pageInfo.PageID == 0 {
+		return nil, fmt.Errorf("page not found: %s", title)
+	}
+
+	return &pageInfo, nil
+}
+
+// GetPageRevisions retrieves recent page revisions
+func (w *WikipediaClient) GetPageRevisions(title string, limit int) ([]models.WikiRevision, error) {
+	params := map[string]string{
+		"action":  "query",
+		"titles":  title,
+		"prop":    "revisions",
+		"rvlimit": fmt.Sprintf("%d", limit),
+		"rvprop":  "ids|timestamp|user|userid|size|comment|flags",
+		"format":  "json",
+	}
+
+	resp, err := w.client.R().
+		SetQueryParams(params).
+		Get(w.baseURL)
+
+	if err != nil {
+		return nil, fmt.Errorf("API request error: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("non-200 API response: %d", resp.StatusCode())
+	}
+
+	body := string(resp.Body())
+	pages := gjson.Get(body, "query.pages")
+
+	if !pages.Exists() {
+		return []models.WikiRevision{}, nil
+	}
+
+	var revisions []models.WikiRevision
+	pages.ForEach(func(key, value gjson.Result) bool {
+		// Check if page exists
+		if gjson.Get(value.String(), "missing").Exists() {
+			return false
+		}
+
+		// Get revisions array
+		revisionsArray := gjson.Get(value.String(), "revisions")
+		for _, rev := range revisionsArray.Array() {
+			revision := models.WikiRevision{
+				RevID:     int(gjson.Get(rev.String(), "revid").Int()),
+				ParentID:  int(gjson.Get(rev.String(), "parentid").Int()),
+				User:      gjson.Get(rev.String(), "user").String(),
+				Timestamp: gjson.Get(rev.String(), "timestamp").String(),
+				Size:      int(gjson.Get(rev.String(), "size").Int()),
+				Comment:   gjson.Get(rev.String(), "comment").String(),
+			}
+
+			// Optional fields
+			if gjson.Get(rev.String(), "userid").Exists() {
+				revision.UserID = int(gjson.Get(rev.String(), "userid").Int())
+			}
+			if gjson.Get(rev.String(), "minor").Exists() {
+				revision.Minor = "true"
+			}
+			if gjson.Get(rev.String(), "anon").Exists() {
+				revision.Anon = "true"
+			}
+
+			revisions = append(revisions, revision)
+		}
+		return false // Break after first page
+	})
+
+	return revisions, nil
+}
+
+// GetPageContributors retrieves top contributors to a page
+func (w *WikipediaClient) GetPageContributors(title string, limit int) ([]models.WikiContributor, error) {
+	// First get the page ID
+	pageInfo, err := w.GetPageInfo(title)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get page info: %w", err)
+	}
+
+	params := map[string]string{
+		"action":         "query",
+		"pageids":        fmt.Sprintf("%d", pageInfo.PageID),
+		"prop":           "contributors",
+		"pclimit":        fmt.Sprintf("%d", limit),
+		"pcexcludegroup": "bot",
+		"format":         "json",
+	}
+
+	resp, err := w.client.R().
+		SetQueryParams(params).
+		Get(w.baseURL)
+
+	if err != nil {
+		return nil, fmt.Errorf("API request error: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("non-200 API response: %d", resp.StatusCode())
+	}
+
+	body := string(resp.Body())
+	pages := gjson.Get(body, "query.pages")
+
+	if !pages.Exists() {
+		return []models.WikiContributor{}, nil
+	}
+
+	var contributors []models.WikiContributor
+	pages.ForEach(func(key, value gjson.Result) bool {
+		// Get contributors array
+		contributorsArray := gjson.Get(value.String(), "contributors")
+		for _, contrib := range contributorsArray.Array() {
+			contributor := models.WikiContributor{
+				Name: gjson.Get(contrib.String(), "name").String(),
+			}
+
+			// Optional fields
+			if gjson.Get(contrib.String(), "userid").Exists() {
+				contributor.UserID = int(gjson.Get(contrib.String(), "userid").Int())
+			}
+			if gjson.Get(contrib.String(), "anon").Exists() {
+				contributor.Anon = "true"
+			}
+
+			contributors = append(contributors, contributor)
+		}
+		return false // Break after first page
+	})
+
+	return contributors, nil
+}
+
+// GetPageHistory retrieves detailed edit history for analysis
+func (w *WikipediaClient) GetPageHistory(title string, days int) ([]models.WikiRevision, error) {
+	// Calculate start date
+	startDate := time.Now().AddDate(0, 0, -days).Format("2006-01-02T15:04:05Z")
+
+	params := map[string]string{
+		"action":  "query",
+		"titles":  title,
+		"prop":    "revisions",
+		"rvlimit": "500", // Maximum allowed
+		"rvprop":  "ids|timestamp|user|userid|size|comment|flags",
+		"rvstart": startDate,
+		"rvdir":   "newer",
+		"format":  "json",
+	}
+
+	resp, err := w.client.R().
+		SetQueryParams(params).
+		Get(w.baseURL)
+
+	if err != nil {
+		return nil, fmt.Errorf("API request error: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("non-200 API response: %d", resp.StatusCode())
+	}
+
+	body := string(resp.Body())
+	pages := gjson.Get(body, "query.pages")
+
+	if !pages.Exists() {
+		return []models.WikiRevision{}, nil
+	}
+
+	var revisions []models.WikiRevision
+	pages.ForEach(func(key, value gjson.Result) bool {
+		// Check if page exists
+		if gjson.Get(value.String(), "missing").Exists() {
+			return false
+		}
+
+		// Get revisions array
+		revisionsArray := gjson.Get(value.String(), "revisions")
+		for _, rev := range revisionsArray.Array() {
+			revision := models.WikiRevision{
+				RevID:     int(gjson.Get(rev.String(), "revid").Int()),
+				ParentID:  int(gjson.Get(rev.String(), "parentid").Int()),
+				User:      gjson.Get(rev.String(), "user").String(),
+				Timestamp: gjson.Get(rev.String(), "timestamp").String(),
+				Size:      int(gjson.Get(rev.String(), "size").Int()),
+				Comment:   gjson.Get(rev.String(), "comment").String(),
+			}
+
+			// Optional fields
+			if gjson.Get(rev.String(), "userid").Exists() {
+				revision.UserID = int(gjson.Get(rev.String(), "userid").Int())
+			}
+			if gjson.Get(rev.String(), "minor").Exists() {
+				revision.Minor = "true"
+			}
+			if gjson.Get(rev.String(), "anon").Exists() {
+				revision.Anon = "true"
+			}
+
+			revisions = append(revisions, revision)
+		}
+		return false // Break after first page
+	})
+
+	return revisions, nil
+}
