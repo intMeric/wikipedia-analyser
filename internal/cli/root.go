@@ -24,7 +24,9 @@ and suspicious behavior.
 
 Usage examples:
   wikiosint user profile username
-  wikiosint user activity username --days 30`,
+  wikiosint user activity username --days 30
+  wikiosint page analyze "Page Title"
+  wikiosint pages "Page 1" "Page 2" "Page 3"`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -49,6 +51,7 @@ func init() {
 	// Add subcommands
 	rootCmd.AddCommand(userCmd)
 	rootCmd.AddCommand(pageCmd)
+	rootCmd.AddCommand(pagesCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.

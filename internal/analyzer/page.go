@@ -540,11 +540,11 @@ func (pa *PageAnalyzer) detectEditWarPeriods(revisions []models.WikiRevision) []
 
 	windowSize := 5
 	for i := 0; i <= len(revisions)-windowSize; i++ {
-		start, _ := time.Parse("2006-01-02T15:04:05Z", revisions[i+windowSize-1].Timestamp)
-		end, _ := time.Parse("2006-01-02T15:04:05Z", revisions[i].Timestamp)
+		startTime, _ := time.Parse("2006-01-02T15:04:05Z", revisions[i].Timestamp)
+		endTime, _ := time.Parse("2006-01-02T15:04:05Z", revisions[i+windowSize-1].Timestamp)
 
 		// If 5+ revisions within 24 hours
-		if end.Sub(start) <= 24*time.Hour {
+		if endTime.Sub(startTime) <= 24*time.Hour {
 			participants := make(map[string]bool)
 			for j := i; j < i+windowSize; j++ {
 				participants[revisions[j].User] = true
@@ -556,8 +556,8 @@ func (pa *PageAnalyzer) detectEditWarPeriods(revisions []models.WikiRevision) []
 			}
 
 			period := models.EditWarPeriod{
-				StartTime:     start,
-				EndTime:       end,
+				StartTime:     startTime,
+				EndTime:       endTime,
 				Participants:  participantList,
 				RevisionCount: windowSize,
 			}

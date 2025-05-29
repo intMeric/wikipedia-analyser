@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/intMeric/wikipedia-analyser/internal/client"
-
 	"github.com/intMeric/wikipedia-analyser/internal/analyzer"
+	"github.com/intMeric/wikipedia-analyser/internal/client"
 	"github.com/intMeric/wikipedia-analyser/internal/formatter"
 	"github.com/spf13/cobra"
 )
@@ -124,7 +123,11 @@ func runPageAnalyze(cmd *cobra.Command, args []string) error {
 	wikiClient := client.NewWikipediaClient(pageLanguage)
 
 	// Create page analysis options
-	analysisOptions := buildAnalyzerOptiosn()
+	analysisOptions := analyzer.PageAnalysisOptions{
+		NumberOfPageRevisions: pageMaxRevisions,
+		NumberOfDaysHistory:   pageMaxHistory,
+		NumberOfContributors:  pageMaxContributors,
+	}
 
 	// Create page analyzer with options
 	pageAnalyzer := analyzer.NewPageAnalyzer(wikiClient, analysisOptions)
@@ -171,7 +174,11 @@ func runPageHistory(cmd *cobra.Command, args []string) error {
 	wikiClient := client.NewWikipediaClient(pageLanguage)
 
 	// Create page analysis options
-	analysisOptions := buildAnalyzerOptiosn()
+	analysisOptions := analyzer.PageAnalysisOptions{
+		NumberOfPageRevisions: pageMaxRevisions,
+		NumberOfDaysHistory:   pageMaxHistory,
+		NumberOfContributors:  pageMaxContributors,
+	}
 
 	// Create page analyzer with options
 	pageAnalyzer := analyzer.NewPageAnalyzer(wikiClient, analysisOptions)
@@ -214,7 +221,11 @@ func runPageConflicts(cmd *cobra.Command, args []string) error {
 	wikiClient := client.NewWikipediaClient(pageLanguage)
 
 	// Create page analysis options
-	analysisOptions := buildAnalyzerOptiosn()
+	analysisOptions := analyzer.PageAnalysisOptions{
+		NumberOfPageRevisions: pageMaxRevisions,
+		NumberOfDaysHistory:   pageMaxHistory,
+		NumberOfContributors:  pageMaxContributors,
+	}
 
 	// Create page analyzer with options
 	pageAnalyzer := analyzer.NewPageAnalyzer(wikiClient, analysisOptions)
@@ -248,13 +259,4 @@ func runPageConflicts(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func buildAnalyzerOptiosn() analyzer.PageAnalysisOptions {
-	analysisOptions := analyzer.PageAnalysisOptions{
-		NumberOfPageRevisions: pageMaxRevisions,
-		NumberOfDaysHistory:   pageMaxHistory,
-		NumberOfContributors:  pageMaxContributors,
-	}
-	return analysisOptions
 }
