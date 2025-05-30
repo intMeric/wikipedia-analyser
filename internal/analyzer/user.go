@@ -918,11 +918,15 @@ func (ua *UserAnalyzer) calculateSuspicionScore(profile *models.UserProfile) (in
 		flags = append(flags, "SOME_VANDALISM_REVERTS")
 	}
 
-	// 10. Reverted repeatedly by the same user (possible conflict)
-	for _, count := range profile.RevertedByUsers {
+	for username, count := range profile.RevertedByUsers {
+		if username == "system_detected" || username == "detected" {
+			continue
+		}
+
 		if count > 5 && profile.RevokedCount > 0 && float64(count)/float64(profile.RevokedCount) > 0.5 {
 			score += 15
-			flags = append(flags, "CONFLICT_WITH_SPECIFIC_USER")
+			conflictFlag := fmt.Sprintf("CONFLICT_WITH_SPECIFIC_USER_%s", username)
+			flags = append(flags, conflictFlag)
 			break
 		}
 	}

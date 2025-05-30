@@ -223,6 +223,118 @@ func formatUserAsTable(profile *models.UserProfile) string {
 		output.WriteString("\n")
 	}
 
+	// Detailed revoked contributions list
+	if len(profile.RevokedContribs) > 0 {
+		output.WriteString(dangerColor.Sprint("📋 DETAILED REVOKED CONTRIBUTIONS\n"))
+		output.WriteString(strings.Repeat("─", 100) + "\n")
+
+		// Sort revoked contributions by date (most recent first)
+		sortedRevoked := make([]models.RevokedContribution, len(profile.RevokedContribs))
+		copy(sortedRevoked, profile.RevokedContribs)
+		sort.Slice(sortedRevoked, func(i, j int) bool {
+			return sortedRevoked[i].OriginalContrib.Timestamp.After(sortedRevoked[j].OriginalContrib.Timestamp)
+		})
+
+		// Limit to most recent 20 for readability, but show all if <= 20
+		displayCount := len(sortedRevoked)
+		if displayCount > 20 {
+			displayCount = 20
+			output.WriteString(fmt.Sprintf("📊 Showing 20 most recent revoked contributions (total: %d)\n\n", len(sortedRevoked)))
+		} else {
+			output.WriteString(fmt.Sprintf("📊 All %d revoked contributions:\n\n", len(sortedRevoked)))
+		}
+
+		for i := range displayCount {
+			revoked := sortedRevoked[i]
+			contrib := revoked.OriginalContrib
+
+			// Format page title
+			title := contrib.PageTitle
+			if len(title) > 35 {
+				title = title[:35] + "..."
+			}
+
+			// Format comment
+			comment := contrib.Comment
+			if len(comment) > 30 {
+				comment = comment[:30] + "..."
+			}
+			if comment == "" {
+				comment = secondaryColor.Sprint("(no comment)")
+			}
+
+			// Format size diff
+			diffStr := fmt.Sprintf("%+d", contrib.SizeDiff)
+			if contrib.SizeDiff > 0 {
+				diffStr = successColor.Sprint(diffStr)
+			} else if contrib.SizeDiff < 0 {
+				diffStr = warningColor.Sprint(diffStr)
+			}
+
+			// Calculate time between edit and revocation
+			revertDelay := revoked.RevokedAt.Sub(contrib.Timestamp)
+			var delayStr string
+			if revertDelay < time.Hour {
+				delayStr = fmt.Sprintf("%dm", int(revertDelay.Minutes()))
+			} else if revertDelay < 24*time.Hour {
+				delayStr = fmt.Sprintf("%dh", int(revertDelay.Hours()))
+			} else {
+				delayStr = fmt.Sprintf("%dd", int(revertDelay.Hours()/24))
+			}
+
+			// Format revert type with color
+			revertTypeDisplay := formatRevertTypeShort(revoked.RevertType)
+			var revertColor *color.Color
+			switch revoked.RevertType {
+			case "vandalism_revert":
+				revertColor = dangerColor
+			case "rollback":
+				revertColor = warningColor
+			default:
+				revertColor = infoColor
+			}
+
+			// Format revoked by (truncate system names)
+			revokedBy := revoked.RevokedBy
+			if revokedBy == "system_detected" {
+				revokedBy = secondaryColor.Sprint("system")
+			} else if revokedBy == "detected" {
+				revokedBy = secondaryColor.Sprint("detect")
+			} else if len(revokedBy) > 15 {
+				revokedBy = revokedBy[:15] + "..."
+			}
+
+			// Main line: Date | Page | Size | Comment | Reverted by | Delay | Type
+			output.WriteString(fmt.Sprintf("%-12s %-37s %s %-32s rev:%s (%s) %s\n",
+				contrib.Timestamp.Format("02/01 15:04"),
+				title,
+				diffStr,
+				comment,
+				revokedBy,
+				delayStr,
+				revertColor.Sprint(revertTypeDisplay),
+			))
+
+			// Second line: Revert comment (if meaningful and not too long)
+			if revoked.RevertComment != "" &&
+				revoked.RevertComment != "Detected from revision tags" &&
+				len(strings.TrimSpace(revoked.RevertComment)) > 5 {
+				revertComment := revoked.RevertComment
+				if len(revertComment) > 80 {
+					revertComment = revertComment[:80] + "..."
+				}
+				output.WriteString(fmt.Sprintf("             %s\n",
+					secondaryColor.Sprintf("↳ \"%s\"", revertComment)))
+			}
+		}
+
+		if len(sortedRevoked) > 20 {
+			output.WriteString(fmt.Sprintf("\n... and %d more revoked contributions \n",
+				len(sortedRevoked)-20))
+		}
+		output.WriteString("\n")
+	}
+
 	// Activity statistics - using simple formatting
 	output.WriteString(headerColor.Sprint("📈 ACTIVITY STATISTICS\n"))
 	output.WriteString(strings.Repeat("─", 50) + "\n")
@@ -373,8 +485,14 @@ func getSuspicionColor(score int) *color.Color {
 	}
 }
 
-// formatUserSuspicionFlag formats user suspicion flags into readable text
+// formatUserSuspicionFlag formats user suspicion flags into readable text - FIXED
 func formatUserSuspicionFlag(flag string) string {
+	// Gérer les flags de conflit avec utilisateur spécifique
+	if strings.HasPrefix(flag, "CONFLICT_WITH_SPECIFIC_USER_") {
+		username := strings.TrimPrefix(flag, "CONFLICT_WITH_SPECIFIC_USER_")
+		return fmt.Sprintf("Repeated conflicts with user: %s", username)
+	}
+
 	switch flag {
 	case "RECENT_ACCOUNT_HIGH_ACTIVITY":
 		return "Recent account with intense activity"
@@ -430,5 +548,27 @@ func formatRevertType(revertType string) string {
 		return "Detected (light analysis)"
 	default:
 		return revertType
+	}
+}
+
+// formatRevertTypeShort formats revert types into short readable text for compact display
+func formatRevertTypeShort(revertType string) string {
+	switch revertType {
+	case "vandalism_revert":
+		return "VANDAL"
+	case "rollback":
+		return "ROLLBACK"
+	case "undo":
+		return "UNDO"
+	case "restore":
+		return "RESTORE"
+	case "manual_revert":
+		return "REVERT"
+	case "generic_revert":
+		return "GENERIC"
+	case "detected_light":
+		return "DETECTED"
+	default:
+		return strings.ToUpper(revertType)
 	}
 }
