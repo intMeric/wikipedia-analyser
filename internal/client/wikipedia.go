@@ -176,6 +176,76 @@ func (w *WikipediaClient) GetUserContributions(username string, limit int) ([]mo
 	return contributions, nil
 }
 
+// GetUserContributionsWithTags retrieves user contributions with tags information
+func (w *WikipediaClient) GetUserContributionsWithTags(username string, limit int) ([]models.WikiContribution, error) {
+	params := map[string]string{
+		"action":  "query",
+		"list":    "usercontribs",
+		"ucuser":  username,
+		"uclimit": fmt.Sprintf("%d", limit),
+		"ucprop":  "ids|title|timestamp|comment|size|sizediff|flags|tags", // Added tags
+		"format":  "json",
+	}
+
+	resp, err := w.client.R().
+		SetQueryParams(params).
+		Get(w.baseURL)
+
+	if err != nil {
+		return nil, fmt.Errorf("API request error: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, fmt.Errorf("non-200 API response: %d", resp.StatusCode())
+	}
+
+	body := string(resp.Body())
+	contribs := gjson.Get(body, "query.usercontribs")
+
+	if !contribs.Exists() {
+		return []models.WikiContribution{}, nil
+	}
+
+	var contributions []models.WikiContribution
+	for _, contrib := range contribs.Array() {
+		contribution := models.WikiContribution{
+			UserID:    int(gjson.Get(contrib.String(), "userid").Int()),
+			User:      gjson.Get(contrib.String(), "user").String(),
+			PageID:    int(gjson.Get(contrib.String(), "pageid").Int()),
+			RevID:     int(gjson.Get(contrib.String(), "revid").Int()),
+			ParentID:  int(gjson.Get(contrib.String(), "parentid").Int()),
+			NS:        int(gjson.Get(contrib.String(), "ns").Int()),
+			Title:     gjson.Get(contrib.String(), "title").String(),
+			Timestamp: gjson.Get(contrib.String(), "timestamp").String(),
+			Comment:   gjson.Get(contrib.String(), "comment").String(),
+			Size:      int(gjson.Get(contrib.String(), "size").Int()),
+			SizeDiff:  int(gjson.Get(contrib.String(), "sizediff").Int()),
+		}
+
+		// Optional flags
+		if gjson.Get(contrib.String(), "minor").Exists() {
+			contribution.Minor = "true"
+		}
+		if gjson.Get(contrib.String(), "top").Exists() {
+			contribution.Top = "true"
+		}
+
+		// Extract tags if available - this is the new functionality
+		tags := gjson.Get(contrib.String(), "tags")
+		if tags.Exists() {
+			var tagList []string
+			for _, tag := range tags.Array() {
+				tagList = append(tagList, tag.String())
+			}
+			contribution.Tags = tagList
+		}
+
+		contributions = append(contributions, contribution)
+	}
+
+	return contributions, nil
+}
+
 // GetUserEditsByNamespace retrieves edit statistics by namespace
 func (w *WikipediaClient) GetUserEditsByNamespace(username string) (map[int]int, error) {
 	// This query requires special privileges or extensions

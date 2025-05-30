@@ -5,26 +5,28 @@ import (
 	"time"
 )
 
-// UserProfile représente le profil complet d'un utilisateur Wikipedia
 type UserProfile struct {
-	Username         string            `json:"username"`
-	UserID           int               `json:"user_id"`
-	RegistrationDate *time.Time        `json:"registration_date"`
-	EditCount        int               `json:"edit_count"`
-	Groups           []string          `json:"groups"`
-	ImplicitGroups   []string          `json:"implicit_groups"`
-	RightsInfo       []string          `json:"rights_info"`
-	BlockInfo        *BlockInfo        `json:"block_info,omitempty"`
-	RecentContribs   []Contribution    `json:"recent_contributions"`
-	TopPages         []PageEditSummary `json:"top_edited_pages"`
-	ActivityStats    ActivityStats     `json:"activity_stats"`
-	SuspicionScore   int               `json:"suspicion_score"`
-	SuspicionFlags   []string          `json:"suspicion_flags"`
-	Language         string            `json:"language"`
-	RetrievedAt      time.Time         `json:"retrieved_at"`
+	Username         string                `json:"username"`
+	UserID           int                   `json:"user_id"`
+	RegistrationDate *time.Time            `json:"registration_date"`
+	EditCount        int                   `json:"edit_count"`
+	Groups           []string              `json:"groups"`
+	ImplicitGroups   []string              `json:"implicit_groups"`
+	RightsInfo       []string              `json:"rights_info"`
+	BlockInfo        *BlockInfo            `json:"block_info,omitempty"`
+	RecentContribs   []Contribution        `json:"recent_contributions"`
+	TopPages         []PageEditSummary     `json:"top_edited_pages"`
+	ActivityStats    ActivityStats         `json:"activity_stats"`
+	RevokedContribs  []RevokedContribution `json:"revoked_contributions"`
+	RevokedCount     int                   `json:"revoked_count"`
+	RevokedRatio     float64               `json:"revoked_ratio"`
+	RevertedByUsers  map[string]int        `json:"reverted_by_users"`
+	SuspicionScore   int                   `json:"suspicion_score"`
+	SuspicionFlags   []string              `json:"suspicion_flags"`
+	Language         string                `json:"language"`
+	RetrievedAt      time.Time             `json:"retrieved_at"`
 }
 
-// BlockInfo contient les informations de blocage d'un utilisateur
 type BlockInfo struct {
 	Blocked    bool      `json:"blocked"`
 	BlockedBy  string    `json:"blocked_by,omitempty"`
@@ -33,20 +35,31 @@ type BlockInfo struct {
 	Reason     string    `json:"reason,omitempty"`
 }
 
-// Contribution représente une contribution d'un utilisateur
 type Contribution struct {
-	RevID     int       `json:"rev_id"`
-	PageTitle string    `json:"page_title"`
-	Namespace int       `json:"namespace"`
-	Timestamp time.Time `json:"timestamp"`
-	Comment   string    `json:"comment"`
-	SizeDiff  int       `json:"size_diff"`
-	IsMinor   bool      `json:"is_minor"`
-	IsTop     bool      `json:"is_top"`
-	PageID    int       `json:"page_id"`
+	RevID        int       `json:"rev_id"`
+	PageTitle    string    `json:"page_title"`
+	Namespace    int       `json:"namespace"`
+	Timestamp    time.Time `json:"timestamp"`
+	Comment      string    `json:"comment"`
+	SizeDiff     int       `json:"size_diff"`
+	IsMinor      bool      `json:"is_minor"`
+	IsTop        bool      `json:"is_top"`
+	PageID       int       `json:"page_id"`
+	IsRevoked    bool      `json:"is_revoked"`
+	RevokedBy    string    `json:"revoked_by,omitempty"`
+	RevokedAt    time.Time `json:"revoked_at,omitempty"`
+	RevertReason string    `json:"revert_reason,omitempty"`
 }
 
-// PageEditSummary résume les éditions d'un utilisateur sur une page
+type RevokedContribution struct {
+	OriginalContrib Contribution `json:"original_contribution"`
+	RevokedBy       string       `json:"revoked_by"`
+	RevokedAt       time.Time    `json:"revoked_at"`
+	RevertComment   string       `json:"revert_comment"`
+	PageTitle       string       `json:"page_title"`
+	RevertType      string       `json:"revert_type"` // "undo", "revert", "rollback", etc.
+}
+
 type PageEditSummary struct {
 	PageTitle     string    `json:"page_title"`
 	PageID        int       `json:"page_id"`
@@ -57,7 +70,6 @@ type PageEditSummary struct {
 	TotalSizeDiff int       `json:"total_size_diff"`
 }
 
-// ActivityStats contient des statistiques d'activité
 type ActivityStats struct {
 	DaysActive         int             `json:"days_active"`
 	AverageEditsPerDay float64         `json:"average_edits_per_day"`
@@ -68,15 +80,11 @@ type ActivityStats struct {
 	RecentActivity     []DailyActivity `json:"recent_activity"`
 }
 
-// DailyActivity représente l'activité quotidienne
 type DailyActivity struct {
 	Date      time.Time `json:"date"`
 	EditCount int       `json:"edit_count"`
 }
 
-// APIResponse structures pour l'API MediaWiki
-
-// WikiUserInfo représente la réponse de l'API pour les infos utilisateur
 type WikiUserInfo struct {
 	UserID         int      `json:"userid"`
 	Name           string   `json:"name"`
@@ -90,24 +98,23 @@ type WikiUserInfo struct {
 	BlockedBy      string   `json:"blockedby,omitempty"`
 }
 
-// WikiContribution représente une contribution de l'API
 type WikiContribution struct {
-	UserID    int    `json:"userid"`
-	User      string `json:"user"`
-	PageID    int    `json:"pageid"`
-	RevID     int    `json:"revid"`
-	ParentID  int    `json:"parentid"`
-	NS        int    `json:"ns"`
-	Title     string `json:"title"`
-	Timestamp string `json:"timestamp"`
-	Comment   string `json:"comment"`
-	Size      int    `json:"size"`
-	SizeDiff  int    `json:"sizediff"`
-	Minor     string `json:"minor,omitempty"`
-	Top       string `json:"top,omitempty"`
+	UserID    int      `json:"userid"`
+	User      string   `json:"user"`
+	PageID    int      `json:"pageid"`
+	RevID     int      `json:"revid"`
+	ParentID  int      `json:"parentid"`
+	NS        int      `json:"ns"`
+	Title     string   `json:"title"`
+	Timestamp string   `json:"timestamp"`
+	Comment   string   `json:"comment"`
+	Size      int      `json:"size"`
+	SizeDiff  int      `json:"sizediff"`
+	Minor     string   `json:"minor,omitempty"`
+	Top       string   `json:"top,omitempty"`
+	Tags      []string `json:"tags,omitempty"`
 }
 
-// WikiResponse structure générique pour les réponses API
 type WikiResponse struct {
 	Query struct {
 		Users        []WikiUserInfo     `json:"users,omitempty"`

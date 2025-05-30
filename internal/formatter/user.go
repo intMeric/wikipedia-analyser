@@ -4,6 +4,7 @@ package formatter
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -81,6 +82,26 @@ func formatUserAsTable(profile *models.UserProfile) string {
 	output.WriteString("🆔 User ID:            " + strconv.Itoa(profile.UserID) + "\n")
 	output.WriteString("✏️ Edit Count:         " + strconv.Itoa(profile.EditCount) + "\n")
 
+	// Add revoked contributions percentage in basic info
+	if profile.RevokedCount > 0 {
+		revokedPercentage := profile.RevokedRatio * 100
+		var revokedDisplay string
+		if revokedPercentage > 50 {
+			revokedDisplay = dangerColor.Sprintf("%.1f%% (VERY HIGH)", revokedPercentage)
+		} else if revokedPercentage > 30 {
+			revokedDisplay = warningColor.Sprintf("%.1f%% (HIGH)", revokedPercentage)
+		} else if revokedPercentage > 20 {
+			revokedDisplay = warningColor.Sprintf("%.1f%% (MODERATE)", revokedPercentage)
+		} else if revokedPercentage > 10 {
+			revokedDisplay = infoColor.Sprintf("%.1f%% (LOW)", revokedPercentage)
+		} else {
+			revokedDisplay = successColor.Sprintf("%.1f%% (MINIMAL)", revokedPercentage)
+		}
+		output.WriteString("🚫 Revoked Ratio:      " + revokedDisplay + "\n")
+	} else {
+		output.WriteString("🚫 Revoked Ratio:      " + successColor.Sprint("0.0% (NONE)") + "\n")
+	}
+
 	if profile.RegistrationDate != nil {
 		regDate := profile.RegistrationDate.Format("02/01/2006")
 		daysSince := int(time.Since(*profile.RegistrationDate).Hours() / 24)
@@ -127,6 +148,77 @@ func formatUserAsTable(profile *models.UserProfile) string {
 		for _, flag := range profile.SuspicionFlags {
 			flagText := formatUserSuspicionFlag(flag)
 			output.WriteString(fmt.Sprintf("🔸 %s\n", warningColor.Sprint(flagText)))
+		}
+		output.WriteString("\n")
+	}
+
+	// Revoked contributions analysis
+	if profile.RevokedCount > 0 {
+		output.WriteString(warningColor.Sprint("🚫 REVOKED CONTRIBUTIONS ANALYSIS\n"))
+		output.WriteString(strings.Repeat("─", 50) + "\n")
+
+		output.WriteString("🔄 Total Revoked:      " + strconv.Itoa(profile.RevokedCount) + "\n")
+		output.WriteString(fmt.Sprintf("📊 Revoked Ratio:      %.1f%% of all contributions\n", profile.RevokedRatio*100))
+
+		// Display suspicion level based on ratio
+		var revokedStatus string
+		if profile.RevokedRatio > 0.5 {
+			revokedStatus = dangerColor.Sprint("VERY HIGH - Potential vandal")
+		} else if profile.RevokedRatio > 0.3 {
+			revokedStatus = warningColor.Sprint("HIGH - Suspicious activity")
+		} else if profile.RevokedRatio > 0.2 {
+			revokedStatus = warningColor.Sprint("MODERATE - Needs monitoring")
+		} else if profile.RevokedRatio > 0.1 {
+			revokedStatus = infoColor.Sprint("LOW - Some issues")
+		} else {
+			revokedStatus = successColor.Sprint("MINIMAL - Normal conflicts")
+		}
+
+		output.WriteString("⚠️  Risk Level:        " + revokedStatus + "\n")
+
+		// Analyze revert types
+		revertTypes := make(map[string]int)
+		for _, revoked := range profile.RevokedContribs {
+			revertTypes[revoked.RevertType]++
+		}
+
+		if len(revertTypes) > 0 {
+			output.WriteString("📋 Revert Types:\n")
+			for revertType, count := range revertTypes {
+				typeDescription := formatRevertType(revertType)
+				output.WriteString(fmt.Sprintf("   • %s: %d times\n", typeDescription, count))
+			}
+		}
+
+		// Top users who revert this user
+		if len(profile.RevertedByUsers) > 0 {
+			output.WriteString("👥 Most Frequent Reverters:\n")
+
+			// Sort by number of reverts
+			type userRevertCount struct {
+				user  string
+				count int
+			}
+
+			var reverterList []userRevertCount
+			for user, count := range profile.RevertedByUsers {
+				reverterList = append(reverterList, userRevertCount{user, count})
+			}
+
+			sort.Slice(reverterList, func(i, j int) bool {
+				return reverterList[i].count > reverterList[j].count
+			})
+
+			// Display top 5
+			for i, reverter := range reverterList {
+				if i >= 5 {
+					break
+				}
+
+				percentage := float64(reverter.count) / float64(profile.RevokedCount) * 100
+				output.WriteString(fmt.Sprintf("   • %s: %d reverts (%.1f%%)\n",
+					reverter.user, reverter.count, percentage))
+			}
 		}
 		output.WriteString("\n")
 	}
@@ -185,10 +277,10 @@ func formatUserAsTable(profile *models.UserProfile) string {
 		output.WriteString("\n")
 	}
 
-	// Recent contributions (preview) - using simple formatting
+	// Recent contributions (preview) - modified to show revocations
 	if len(profile.RecentContribs) > 0 {
 		output.WriteString(headerColor.Sprint("🕒 RECENT CONTRIBUTIONS (last 5)\n"))
-		output.WriteString(strings.Repeat("─", 80) + "\n")
+		output.WriteString(strings.Repeat("─", 90) + "\n")
 
 		for i, contrib := range profile.RecentContribs {
 			if i >= 5 {
@@ -196,13 +288,13 @@ func formatUserAsTable(profile *models.UserProfile) string {
 			}
 
 			title := contrib.PageTitle
-			if len(title) > 35 {
-				title = title[:35] + "..."
+			if len(title) > 30 {
+				title = title[:30] + "..."
 			}
 
 			comment := contrib.Comment
-			if len(comment) > 30 {
-				comment = comment[:30] + "..."
+			if len(comment) > 25 {
+				comment = comment[:25] + "..."
 			}
 			if comment == "" {
 				comment = secondaryColor.Sprint("(no comment)")
@@ -215,11 +307,27 @@ func formatUserAsTable(profile *models.UserProfile) string {
 				diffStr = warningColor.Sprint(diffStr)
 			}
 
-			output.WriteString(fmt.Sprintf("%-12s %-38s %s %s\n",
+			// Revocation indicator
+			revokedIndicator := ""
+			if contrib.IsRevoked {
+				revokedIndicator = dangerColor.Sprint(" [REVOKED]")
+
+				// Add who revoked and when
+				revokedAge := int(time.Since(contrib.RevokedAt).Hours() / 24)
+				if revokedAge == 0 {
+					revokedIndicator += secondaryColor.Sprint(" by " + contrib.RevokedBy + " (today)")
+				} else {
+					revokedIndicator += secondaryColor.Sprintf(" by %s (%dd ago)",
+						contrib.RevokedBy, revokedAge)
+				}
+			}
+
+			output.WriteString(fmt.Sprintf("%-12s %-32s %s %s%s\n",
 				contrib.Timestamp.Format("02/01 15:04"),
 				title,
 				diffStr,
 				comment,
+				revokedIndicator,
 			))
 		}
 		output.WriteString("\n")
@@ -280,7 +388,47 @@ func formatUserSuspicionFlag(flag string) string {
 		return "Edits only in sensitive namespaces"
 	case "FREQUENT_EMPTY_COMMENTS":
 		return "Edit comments frequently empty"
+	case "VERY_HIGH_REVOKED_RATIO":
+		return "Very high ratio of revoked contributions (>50%)"
+	case "HIGH_REVOKED_RATIO":
+		return "High ratio of revoked contributions (>30%)"
+	case "MODERATE_REVOKED_RATIO":
+		return "Moderate ratio of revoked contributions (>20%)"
+	case "MANY_REVOKED_CONTRIBUTIONS":
+		return "Many contributions have been revoked (>50)"
+	case "SOME_REVOKED_CONTRIBUTIONS":
+		return "Several contributions have been revoked (>20)"
+	case "VANDALISM_PATTERN":
+		return "Pattern of vandalism-related reverts detected"
+	case "SOME_VANDALISM_REVERTS":
+		return "Some contributions reverted as vandalism"
+	case "CONFLICT_WITH_SPECIFIC_USER":
+		return "Repeated conflicts with specific user"
+	case "NEW_ACCOUNT_MANY_REVERTS":
+		return "New account with many revoked contributions"
 	default:
 		return flag
+	}
+}
+
+// formatRevertType formats revert types into readable text
+func formatRevertType(revertType string) string {
+	switch revertType {
+	case "vandalism_revert":
+		return "Vandalism (serious)"
+	case "rollback":
+		return "Rollback (admin tool)"
+	case "undo":
+		return "Manual undo"
+	case "restore":
+		return "Content restoration"
+	case "manual_revert":
+		return "Manual revert"
+	case "generic_revert":
+		return "Generic revert"
+	case "detected_light":
+		return "Detected (light analysis)"
+	default:
+		return revertType
 	}
 }
