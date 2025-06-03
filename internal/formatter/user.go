@@ -14,16 +14,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var (
-	// Colors for terminal display
-	headerColor    = color.New(color.FgCyan, color.Bold)
-	successColor   = color.New(color.FgGreen)
-	warningColor   = color.New(color.FgYellow)
-	dangerColor    = color.New(color.FgRed, color.Bold)
-	infoColor      = color.New(color.FgBlue)
-	secondaryColor = color.New(color.FgHiBlack)
-)
-
 // FormatUserProfile formats the user profile according to the specified format
 func FormatUserProfile(profile *models.UserProfile, format string) (string, error) {
 	switch strings.ToLower(format) {
@@ -451,38 +441,6 @@ func formatUserAsTable(profile *models.UserProfile) string {
 		len(profile.RecentContribs), profile.Language))
 
 	return output.String()
-}
-
-// getSuspicionText returns descriptive text for suspicion score
-func getSuspicionText(score int) string {
-	switch {
-	case score >= 80:
-		return "VERY HIGH"
-	case score >= 60:
-		return "HIGH"
-	case score >= 40:
-		return "MODERATE"
-	case score >= 20:
-		return "LOW"
-	default:
-		return "MINIMAL"
-	}
-}
-
-// getSuspicionColor returns appropriate color for the score
-func getSuspicionColor(score int) *color.Color {
-	switch {
-	case score >= 80:
-		return dangerColor
-	case score >= 60:
-		return color.New(color.FgRed)
-	case score >= 40:
-		return warningColor
-	case score >= 20:
-		return color.New(color.FgYellow)
-	default:
-		return successColor
-	}
 }
 
 // formatUserSuspicionFlag formats user suspicion flags into readable text - FIXED

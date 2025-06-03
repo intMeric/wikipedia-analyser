@@ -2,8 +2,9 @@
 package utils
 
 // SetOrDefault returns the value if it's not zero, otherwise returns the default
-func SetOrDefault(value, defaultValue int) int {
-	if value == 0 {
+func SetOrDefault[T comparable](value, defaultValue T) T {
+	var zero T
+	if value == zero {
 		return defaultValue
 	}
 	return value

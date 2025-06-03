@@ -739,19 +739,3 @@ func formatContributorSuspicionFlag(flag string) string {
 		return flag
 	}
 }
-
-// truncateString truncates a string to specified length
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
-}
-
-// min returns the minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

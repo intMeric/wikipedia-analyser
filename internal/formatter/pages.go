@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/intMeric/wikipedia-analyser/internal/models"
 	"gopkg.in/yaml.v2"
 )
@@ -276,23 +275,5 @@ func formatCrossPageSuspicionFlag(flag string) string {
 		return "Coordinated reversion campaigns detected"
 	default:
 		return flag
-	}
-}
-
-// getSuspicionLevelColor returns appropriate color for suspicion level
-func getSuspicionLevelColor(level string) *color.Color {
-	switch level {
-	case "VERY_HIGH":
-		return dangerColor
-	case "HIGH":
-		return color.New(color.FgRed)
-	case "MODERATE":
-		return warningColor
-	case "LOW":
-		return color.New(color.FgYellow)
-	case "NONE":
-		return successColor
-	default:
-		return secondaryColor
 	}
 }

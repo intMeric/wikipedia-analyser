@@ -26,7 +26,9 @@ Usage examples:
   wikiosint user profile username
   wikiosint user activity username --days 30
   wikiosint page analyze "Page Title"
-  wikiosint pages "Page 1" "Page 2" "Page 3"`,
+  wikiosint pages "Page 1" "Page 2" "Page 3"
+  wikiosint contribution analyze 123456789
+  wikiosint contribution recent "Page Title"`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -52,6 +54,7 @@ func init() {
 	rootCmd.AddCommand(userCmd)
 	rootCmd.AddCommand(pageCmd)
 	rootCmd.AddCommand(pagesCmd)
+	rootCmd.AddCommand(contributionCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
