@@ -215,7 +215,7 @@ func (pa *PageAnalyzer) analyzeContributorSuspicion(contributors []models.TopCon
 		if err != nil {
 			contributor.SuspicionScore = -1
 			contributor.AnalysisError = fmt.Sprintf("Analysis failed: %v", err)
-			fmt.Printf("  ⚠️ Failed to analyze %s: %v\n", contributor.Username, err)
+			fmt.Printf("⚠️ [PAGES ANALYZER] Failed to analyze %s: %v\n", contributor.Username, err)
 			continue
 		}
 

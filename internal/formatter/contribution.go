@@ -50,7 +50,7 @@ func formatContributionAsTable(profile *models.ContributionProfile) string {
 
 	// Header with revision ID and suspicion score
 	output.WriteString(headerColor.Sprint("╭─────────────────────────────────────────────────────────────╮\n"))
-	output.WriteString(headerColor.Sprintf("│  📝 CONTRIBUTION ANALYSIS: Revision %-18d │\n", profile.RevisionID))
+	output.WriteString(headerColor.Sprintf("│  📝 CONTRIBUTION ANALYSIS: Revision %-18d        │\n", profile.RevisionID))
 	output.WriteString(headerColor.Sprint("╰─────────────────────────────────────────────────────────────╯\n\n"))
 
 	// Suspicion score with color

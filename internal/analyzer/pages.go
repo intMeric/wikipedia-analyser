@@ -56,7 +56,7 @@ func NewCrossPageAnalyzer(client *client.WikipediaClient, options models.CrossPa
 
 // AnalyzePages performs cross-page analysis on multiple pages
 func (cpa *CrossPageAnalyzer) AnalyzePages(pageNames []string) (*models.CrossPageAnalysis, error) {
-	fmt.Printf("🔍 Starting cross-page analysis of %d pages...\n", len(pageNames))
+	fmt.Printf("[PAGES ANALYZER]🔍 Starting cross-page analysis of %d pages...\n", len(pageNames))
 
 	// 1. Analyze each page individually
 	pageProfiles := make(map[string]*models.PageProfile)
@@ -64,11 +64,11 @@ func (cpa *CrossPageAnalyzer) AnalyzePages(pageNames []string) (*models.CrossPag
 	allRevisions := []models.EditEvent{}
 
 	for i, pageName := range pageNames {
-		fmt.Printf("📄 Analyzing page %d/%d: %s\n", i+1, len(pageNames), pageName)
+		fmt.Printf("[PAGES ANALYZER]📄 Analyzing page %d/%d: %s\n", i+1, len(pageNames), pageName)
 
 		profile, err := cpa.pageAnalyzer.GetPageProfile(pageName)
 		if err != nil {
-			fmt.Printf("⚠️ Failed to analyze page %s: %v\n", pageName, err)
+			fmt.Printf("[PAGES ANALYZER]⚠️ Failed to analyze page %s: %v\n", pageName, err)
 			continue
 		}
 
@@ -79,22 +79,18 @@ func (cpa *CrossPageAnalyzer) AnalyzePages(pageNames []string) (*models.CrossPag
 		cpa.extractRevisions(profile, pageName, &allRevisions)
 	}
 
-	fmt.Printf("📊 Found %d unique contributors across all pages\n", len(allContributors))
+	fmt.Printf("[PAGES ANALYZER]📊 Found %d unique contributors across all pages\n", len(allContributors))
 
 	// 2. Identify common contributors
 	commonContributors := cpa.identifyCommonContributors(allContributors)
-	fmt.Printf("👥 Identified %d contributors active on multiple pages\n", len(commonContributors))
 
 	// 3. Analyze coordination patterns
-	fmt.Printf("🤝 Analyzing coordination patterns...\n")
 	coordinatedPatterns := cpa.analyzeCoordinationPatterns(commonContributors, allRevisions)
 
 	// 4. Analyze temporal patterns
-	fmt.Printf("⏰ Analyzing temporal patterns...\n")
 	temporalPatterns := cpa.analyzeTemporalPatterns(allRevisions, commonContributors)
 
 	// 5. Detect sockpuppet networks
-	fmt.Printf("🎭 Detecting sockpuppet networks...\n")
 	sockpuppetNetworks := cpa.detectSockpuppetNetworks(commonContributors, allRevisions)
 
 	// 6. Calculate overall suspicion score
@@ -116,7 +112,7 @@ func (cpa *CrossPageAnalyzer) AnalyzePages(pageNames []string) (*models.CrossPag
 		PageProfiles:        pageProfiles,
 	}
 
-	fmt.Printf("✅ Cross-page analysis completed. Suspicion score: %d/100\n", suspicionScore)
+	fmt.Printf("[PAGES ANALYZER]✅ Cross-page analysis completed. Suspicion score: %d/100\n", suspicionScore)
 	return analysis, nil
 }
 

@@ -85,15 +85,11 @@ func (ua *UserAnalyzer) GetUserProfile(username string) (*models.UserProfile, er
 	profile.TopPages = ua.analyzeTopPages(contributions)
 	profile.ActivityStats = ua.analyzeActivity(contributions, profile.RegistrationDate)
 
-	// 7. Analyze revoked contributions (NEW STEP)
-	fmt.Printf("🔍 Analyzing revoked contributions for %s...\n", username)
-
 	// Use default configuration for revoked analysis
 	config := GetDefaultRevokedAnalysisConfig()
 	revokedContribs, err := ua.analyzeRevokedContributions(username, contributions, config)
 	if err != nil {
-		fmt.Printf("⚠️ Failed to analyze revoked contributions: %v\n", err)
-		// Continue without this analysis rather than failing completely
+		fmt.Printf("⚠️ [USER ANALYZER] Failed to analyze revoked contributions: %v\n", err)
 		revokedContribs = []models.RevokedContribution{}
 	}
 
