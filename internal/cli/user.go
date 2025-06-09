@@ -73,11 +73,11 @@ func init() {
 	profileCmd.Flags().StringVar(&saveToFile, "save", "", "save result to file")
 
 	// Revoked contributions analysis flags
-	profileCmd.Flags().IntVar(&maxPagesToAnalyze, "max-pages-analyze", 10, "maximum number of pages to analyze for reverts")
-	profileCmd.Flags().IntVar(&maxRevisionsPerPage, "max-revisions-page", 50, "maximum revisions per page to check")
-	profileCmd.Flags().BoolVar(&enableDeepAnalysis, "enable-deep-analysis", false, "enable thorough analysis (slower)")
-	profileCmd.Flags().IntVar(&recentDaysOnly, "recent-days-only", 90, "only analyze contributions from last N days")
-	profileCmd.Flags().BoolVar(&skipRevokedAnalysis, "skip-revoked-analysis", false, "skip revoked contributions analysis")
+	profileCmd.Flags().IntVar(&maxPagesToAnalyze, "max-pages-analyze", 10, "Maximum number of pages to analyze for revoked contributions.")
+	profileCmd.Flags().IntVar(&maxRevisionsPerPage, "max-revisions-page", 50, "Maximum number of revisions to check per page for revoked contributions.")
+	profileCmd.Flags().BoolVar(&enableDeepAnalysis, "enable-deep-analysis", false, "Enable thorough analysis for revoked contributions (slower but more accurate).")
+	profileCmd.Flags().IntVar(&recentDaysOnly, "recent-days-only", 90, "Only analyze revoked contributions from the last N days.")
+	profileCmd.Flags().BoolVar(&skipRevokedAnalysis, "skip-revoked-analysis", false, "Skip the entire revoked contributions analysis.")
 }
 
 func runUserProfile(cmd *cobra.Command, args []string) error {
@@ -108,7 +108,19 @@ func runUserProfile(cmd *cobra.Command, args []string) error {
 		fmt.Printf("⚠️  Revoked contributions analysis: skipped\n")
 	}
 
-	userProfile, err := userAnalyzer.GetUserProfile(username)
+	// Create revoked analysis configuration from CLI flags
+	var revokedConfig *analyzer.RevokedAnalysisConfig
+	if !skipRevokedAnalysis {
+		revokedConfig = &analyzer.RevokedAnalysisConfig{
+			MaxPagesToAnalyze:   maxPagesToAnalyze,
+			MaxRevisionsPerPage: maxRevisionsPerPage,
+			EnableDeepAnalysis:  enableDeepAnalysis,
+			RecentDaysOnly:      recentDaysOnly,
+		}
+	}
+
+	// Get user profile with custom configuration
+	userProfile, err := userAnalyzer.GetUserProfileWithConfig(username, revokedConfig)
 	if err != nil {
 		return fmt.Errorf("error retrieving profile: %w", err)
 	}

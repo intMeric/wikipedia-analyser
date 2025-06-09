@@ -39,8 +39,16 @@ func NewUserAnalyzer(client *client.WikipediaClient) *UserAnalyzer {
 	}
 }
 
-// GetUserProfile retrieves and analyzes a complete user profile
+// GetUserProfile retrieves and analyzes a complete user profile using default configuration
+// This method is kept for compatibility with other analyzers (PageAnalyzer, CrossPageAnalyzer)
 func (ua *UserAnalyzer) GetUserProfile(username string) (*models.UserProfile, error) {
+	// Use default configuration for backward compatibility
+	defaultConfig := GetDefaultRevokedAnalysisConfig()
+	return ua.GetUserProfileWithConfig(username, &defaultConfig)
+}
+
+// GetUserProfileWithConfig retrieves and analyzes a complete user profile with custom configuration
+func (ua *UserAnalyzer) GetUserProfileWithConfig(username string, config *RevokedAnalysisConfig) (*models.UserProfile, error) {
 	// 1. Get basic information
 	userInfo, err := ua.client.GetUserInfo(username)
 	if err != nil {
@@ -48,7 +56,7 @@ func (ua *UserAnalyzer) GetUserProfile(username string) (*models.UserProfile, er
 	}
 
 	// 2. Get recent contributions with tags
-	contributions, err := ua.client.GetUserContributionsWithTags(username, 100)
+	contributions, err := ua.client.GetUserContributionsWithTags(username, 200)
 	if err != nil {
 		// Fallback to standard contributions if tags are not available
 		contributions, err = ua.client.GetUserContributions(username, 100)
@@ -85,11 +93,16 @@ func (ua *UserAnalyzer) GetUserProfile(username string) (*models.UserProfile, er
 	profile.TopPages = ua.analyzeTopPages(contributions)
 	profile.ActivityStats = ua.analyzeActivity(contributions, profile.RegistrationDate)
 
-	// Use default configuration for revoked analysis
-	config := GetDefaultRevokedAnalysisConfig()
-	revokedContribs, err := ua.analyzeRevokedContributions(username, contributions, config)
-	if err != nil {
-		fmt.Printf("⚠️ [USER ANALYZER] Failed to analyze revoked contributions: %v\n", err)
+	// 7. Analyze revoked contributions using provided configuration (or skip if nil)
+	var revokedContribs []models.RevokedContribution
+	if config != nil {
+		revokedContribs, err = ua.analyzeRevokedContributions(username, contributions, *config)
+		if err != nil {
+			fmt.Printf("⚠️ [USER ANALYZER] Failed to analyze revoked contributions: %v\n", err)
+			revokedContribs = []models.RevokedContribution{}
+		}
+	} else {
+		// If no config provided, skip revoked analysis
 		revokedContribs = []models.RevokedContribution{}
 	}
 

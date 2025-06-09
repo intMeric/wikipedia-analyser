@@ -7,10 +7,17 @@
 wikiosint user profile "Username" [options]
 
 Options:
-  --lang string     Wikipedia language (default "en")
-  --output string   Output format: table, json, yaml (default "table")
-  --save string     Save results to file
-  -v, --verbose     Verbose output
+  --lang string              Wikipedia language (default "en")
+  --output string            Output format: table, json, yaml (default "table")
+  --save string              Save results to file
+  -v, --verbose              Verbose output
+
+  Revoked Contributions Analysis Options:
+  --max-pages-analyze int    Maximum number of pages to analyze for revoked contributions (default 10)
+  --max-revisions-page int   Maximum number of revisions to check per page for revoked contributions (default 50)
+  --enable-deep-analysis     Enable thorough analysis for revoked contributions (slower but more accurate) (default false)
+  --recent-days-only int     Only analyze revoked contributions from the last N days (default 90)
+  --skip-revoked-analysis    Skip the entire revoked contributions analysis (default false)
 ```
 
 ### Page Analysis
