@@ -12,13 +12,14 @@ import (
 )
 
 var (
-	pageOutputFormat    string
-	pageLanguage        string
-	pageSaveToFile      string
-	pageAnalyzeDays     int
-	pageMaxRevisions    int
-	pageMaxContributors int
-	pageMaxHistory      int
+	pageOutputFormat     string
+	pageLanguage         string
+	pageSaveToFile       string
+	pageAnalyzeDays      int
+	pageMaxRevisions     int
+	pageMaxContributors  int
+	pageMaxHistory       int
+	pageAnalyzeSources   bool
 )
 
 // pageCmd represents the page command
@@ -96,6 +97,7 @@ func init() {
 	analyzeCmd.Flags().IntVar(&pageMaxRevisions, "max-revisions", 100, "maximum number of revisions to analyze")
 	analyzeCmd.Flags().IntVar(&pageMaxContributors, "max-contributors", 20, "maximum number of contributors to analyze")
 	analyzeCmd.Flags().IntVar(&pageMaxHistory, "max-history", 30, "maximum number of days for detailed history")
+	analyzeCmd.Flags().BoolVar(&pageAnalyzeSources, "analyse-sources", false, "analyze page sources and references")
 
 	// Flags for history command
 	historyCmd.Flags().StringVarP(&pageOutputFormat, "output", "o", "table", "output format (table, json, yaml)")
@@ -127,6 +129,7 @@ func runPageAnalyze(cmd *cobra.Command, args []string) error {
 		NumberOfPageRevisions: pageMaxRevisions,
 		NumberOfDaysHistory:   pageMaxHistory,
 		NumberOfContributors:  pageMaxContributors,
+		AnalyzeSources:        pageAnalyzeSources,
 	}
 
 	// Create page analyzer with options

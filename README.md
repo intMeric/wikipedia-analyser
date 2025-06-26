@@ -36,9 +36,11 @@ Options:
   --lang string              Wikipedia language (default "en")
   --output string            Output format: table, json, yaml (default "table")
   --save string              Save results to file
+  --days int                 Number of days to analyze (default 30)
   --max-revisions int        Max revisions to analyze (default 100)
   --max-contributors int     Max contributors to analyze (default 20)
   --max-history int          Days of detailed history (default 30)
+  --analyse-sources          Analyze page sources and references (default false)
 ```
 
 ### Cross-Page Analysis
@@ -60,6 +62,45 @@ Options:
   --enable-deep-analysis     Enable resource-intensive analysis (default false)
 ```
 
+### Contribution Analysis
+
+```bash
+# Analyze a specific contribution/revision
+wikiosint contribution analyze [revision_id] [page_title] [options]
+
+# Analyze latest contribution to a page
+wikiosint contribution analyze latest "Page Title" [options]
+
+# Analyze recent contributions to a page
+wikiosint contribution recent "Page Title" [options]
+
+# Find suspicious contributions to a page
+wikiosint contribution suspicious "Page Title" [options]
+
+Options for 'analyze':
+  --lang string              Wikipedia language (default "en")
+  --output string            Output format: table, json, yaml (default "table")
+  --save string              Save results to file
+  --depth string             Analysis depth: basic, standard, deep (default "standard")
+  --include-content          Include detailed content analysis (default true)
+  --include-context          Include contextual analysis (default false, auto-enabled for deep)
+
+Options for 'recent':
+  --lang string              Wikipedia language (default "en")
+  --output string            Output format: table, json, yaml (default "table")
+  --save string              Save results to file
+  --depth string             Analysis depth: basic, standard (default "basic")
+  --limit int                Number of recent contributions to analyze (5-50) (default 10)
+
+Options for 'suspicious':
+  --lang string              Wikipedia language (default "en")
+  --output string            Output format: table, json, yaml (default "table")
+  --save string              Save results to file
+  --threshold int            Minimum suspicion score threshold (0-100) (default 40)
+  --days int                 Number of days to scan back (default 30)
+  --limit int                Maximum suspicious contributions to show (default 20)
+```
+
 ## 🎯 Use Cases
 
 ### Detect Suspicious Users
@@ -74,6 +115,9 @@ wikiosint user profile "Potential_Sockpuppet" --output json
 ```bash
 # Deep analysis of a potentially manipulated page
 wikiosint page analyze "Controversial Topic" --max-revisions 500 --max-history 90
+
+# Analyze page with source reliability checking
+wikiosint page analyze "Scientific Article" --analyse-sources
 ```
 
 ### Cross-Page Coordination Detection
@@ -97,7 +141,34 @@ wikiosint page conflicts "Current Events Page" --max-history 7
 
 ```bash
 # Compare activity across language editions
-wikiosint page analyze "Same Topic" --lang en
+wikiosint page analyze "Sa
+me Topic" --lang en
 wikiosint page analyze "Same Topic" --lang fr
 wikiosint page analyze "Same Topic" --lang de
+```
+
+### Source Reliability Analysis
+
+```bash
+# Comprehensive source analysis for academic topics
+wikiosint page analyze "Climate Change" --analyse-sources --output json
+
+# Quick source check for recent articles
+wikiosint page analyze "Breaking News Topic" --analyse-sources --max-history 7
+
+# Combined analysis: contributors and sources
+wikiosint page analyze "Medical Article" --analyse-sources --max-contributors 50
+```
+
+### Contribution Analysis
+
+```bash
+# Analyze a specific suspicious edit
+wikiosint contribution analyze 123456789 "Page Title" --depth deep
+
+# Quick scan for recent problematic edits
+wikiosint contribution recent "Controversial Page" --limit 20 --depth standard
+
+# Find all suspicious activity on a page
+wikiosint contribution suspicious "Target Page" --threshold 30 --days 60
 ```

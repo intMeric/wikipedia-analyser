@@ -703,3 +703,53 @@ func (w *WikipediaClient) GetPageHistory(title string, days int) ([]models.WikiR
 
 	return revisions, nil
 }
+
+// GetPageWikitext retrieves the raw wikitext content of a page
+func (w *WikipediaClient) GetPageWikitext(title string) (string, error) {
+	params := map[string]string{
+		"action": "query",
+		"titles": title,
+		"prop":   "revisions",
+		"rvprop": "content",
+		"format": "json",
+	}
+
+	resp, err := w.client.R().
+		SetQueryParams(params).
+		Get(w.baseURL)
+
+	if err != nil {
+		return "", fmt.Errorf("API request error: %w", err)
+	}
+
+	if resp.StatusCode() != 200 {
+		return "", fmt.Errorf("non-200 API response: %d", resp.StatusCode())
+	}
+
+	body := string(resp.Body())
+	pages := gjson.Get(body, "query.pages")
+
+	if !pages.Exists() {
+		return "", fmt.Errorf("page not found: %s", title)
+	}
+
+	var wikitext string
+	pages.ForEach(func(key, value gjson.Result) bool {
+		if gjson.Get(value.String(), "missing").Exists() {
+			return false
+		}
+
+		revisionsArray := gjson.Get(value.String(), "revisions")
+		if len(revisionsArray.Array()) > 0 {
+			rev := revisionsArray.Array()[0]
+			wikitext = gjson.Get(rev.String(), "*").String()
+		}
+		return false
+	})
+
+	if wikitext == "" {
+		return "", fmt.Errorf("unable to retrieve wikitext for page: %s", title)
+	}
+
+	return wikitext, nil
+}

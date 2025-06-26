@@ -16,15 +16,17 @@ import (
 // PageAnalyzer analyzes Wikipedia page data
 type PageAnalyzer struct {
 	client                *client.WikipediaClient
-	numberOfPageRevisions int // Number of revisions to analyze
-	numberOfDaysHistory   int // Number of days for detailed history
-	numberOfContributors  int // Number of contributors to analyze
+	numberOfPageRevisions int  // Number of revisions to analyze
+	numberOfDaysHistory   int  // Number of days for detailed history
+	numberOfContributors  int  // Number of contributors to analyze
+	analyzeSources        bool // Whether to analyze page sources
 }
 
 type PageAnalysisOptions struct {
-	NumberOfPageRevisions int // Number of revisions to analyze
-	NumberOfDaysHistory   int // Number of days for detailed history
-	NumberOfContributors  int // Number of contributors to analyze
+	NumberOfPageRevisions int  // Number of revisions to analyze
+	NumberOfDaysHistory   int  // Number of days for detailed history
+	NumberOfContributors  int  // Number of contributors to analyze
+	AnalyzeSources        bool // Whether to analyze page sources
 }
 
 // NewPageAnalyzer creates a new page analyzer
@@ -34,6 +36,7 @@ func NewPageAnalyzer(client *client.WikipediaClient, pageAnalysisOptions PageAna
 		numberOfPageRevisions: utils.SetOrDefault(pageAnalysisOptions.NumberOfPageRevisions, 100),
 		numberOfDaysHistory:   utils.SetOrDefault(pageAnalysisOptions.NumberOfDaysHistory, 30),
 		numberOfContributors:  utils.SetOrDefault(pageAnalysisOptions.NumberOfContributors, 20),
+		analyzeSources:        pageAnalysisOptions.AnalyzeSources,
 	}
 }
 
@@ -95,7 +98,19 @@ func (pa *PageAnalyzer) GetPageProfile(title string) (*models.PageProfile, error
 		profile.LastModified = newestTimestamp
 	}
 
-	// 10. Calculate suspicion score
+	// 10. Analyze sources if requested
+	if pa.analyzeSources {
+		wikitext, err := pa.client.GetPageWikitext(title)
+		if err != nil {
+			// Don't fail the entire analysis if source analysis fails
+			profile.SuspicionFlags = append(profile.SuspicionFlags, "Source analysis failed")
+		} else {
+			sourceAnalyzer := NewSourceAnalyzer()
+			profile.SourceAnalysis = sourceAnalyzer.AnalyzePageSources(wikitext)
+		}
+	}
+
+	// 11. Calculate suspicion score
 	profile.SuspicionScore, profile.SuspicionFlags = pa.calculateSuspicionScore(profile)
 
 	return profile, nil

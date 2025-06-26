@@ -496,6 +496,83 @@ func formatPageAsTable(profile *models.PageProfile) string {
 	}
 	output.WriteString("\n")
 
+	// Source analysis (if available)
+	if profile.SourceAnalysis != nil {
+		output.WriteString(headerColor.Sprint("📚 SOURCE RELIABILITY ANALYSIS\n"))
+		output.WriteString(strings.Repeat("─", 50) + "\n")
+
+		// Basic statistics
+		output.WriteString(fmt.Sprintf("📊 Total References:   %d\n", profile.SourceAnalysis.TotalReferences))
+		output.WriteString(fmt.Sprintf("🔗 Unique References:  %d\n", profile.SourceAnalysis.UniqueReferences))
+
+		// Reliability score
+		reliabilityScore := profile.SourceAnalysis.ReliabilityScore
+		var scoreColor func(a ...interface{}) string
+		if reliabilityScore >= 70 {
+			scoreColor = successColor.Sprint
+		} else if reliabilityScore >= 40 {
+			scoreColor = warningColor.Sprint
+		} else {
+			scoreColor = dangerColor.Sprint
+		}
+		output.WriteString(fmt.Sprintf("⭐ Reliability Score:  %s\n", scoreColor(fmt.Sprintf("%.1f%%", reliabilityScore))))
+
+		// Domain distribution (top 5)
+		if len(profile.SourceAnalysis.DomainDistribution) > 0 {
+			output.WriteString("\n🌐 Top Source Domains:\n")
+			domains := make([][2]interface{}, 0, len(profile.SourceAnalysis.DomainDistribution))
+			for domain, count := range profile.SourceAnalysis.DomainDistribution {
+				domains = append(domains, [2]interface{}{domain, count})
+			}
+			// Sort by count (simplified)
+			for i := 0; i < len(domains) && i < 5; i++ {
+				domain := domains[i][0].(string)
+				count := domains[i][1].(int)
+				output.WriteString(fmt.Sprintf("   • %s (%d)\n", domain, count))
+			}
+		}
+
+		// Template usage
+		if len(profile.SourceAnalysis.TemplateUsage) > 0 {
+			output.WriteString("\n📝 Citation Templates:\n")
+			for template, count := range profile.SourceAnalysis.TemplateUsage {
+				output.WriteString(fmt.Sprintf("   • {{cite %s}} (%d)\n", template, count))
+			}
+		}
+
+		// Unreliable sources
+		if len(profile.SourceAnalysis.UnreliableSources) > 0 {
+			output.WriteString("\n" + warningColor.Sprint("⚠️  UNRELIABLE SOURCES DETECTED") + "\n")
+			for _, source := range profile.SourceAnalysis.UnreliableSources {
+				var levelColor func(a ...interface{}) string
+				switch source.ReliabilityLevel {
+				case "unreliable":
+					levelColor = dangerColor.Sprint
+				case "questionable":
+					levelColor = warningColor.Sprint
+				default:
+					levelColor = infoColor.Sprint
+				}
+				output.WriteString(fmt.Sprintf("   • %s: %s (%d uses)\n", 
+					levelColor(source.Domain), source.Reason, source.UsageCount))
+			}
+		}
+
+		// Dead links
+		if len(profile.SourceAnalysis.DeadLinks) > 0 {
+			output.WriteString("\n" + dangerColor.Sprint("🔗 DEAD LINKS DETECTED") + "\n")
+			for _, deadLink := range profile.SourceAnalysis.DeadLinks {
+				archiveStatus := "No archive"
+				if deadLink.HasArchive {
+					archiveStatus = "Archived"
+				}
+				output.WriteString(fmt.Sprintf("   • HTTP %d - %s\n", deadLink.HTTPStatus, archiveStatus))
+			}
+		}
+
+		output.WriteString("\n")
+	}
+
 	// Edit frequency
 	output.WriteString(headerColor.Sprint("📈 EDIT FREQUENCY\n"))
 	output.WriteString(strings.Repeat("─", 50) + "\n")

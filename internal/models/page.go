@@ -21,6 +21,7 @@ type PageProfile struct {
 	QualityMetrics  QualityMetrics   `json:"quality_metrics"`
 	SuspicionScore  int              `json:"suspicion_score"`
 	SuspicionFlags  []string         `json:"suspicion_flags"`
+	SourceAnalysis  *SourceAnalysis  `json:"source_analysis,omitempty"`
 	RetrievedAt     time.Time        `json:"retrieved_at"`
 }
 
@@ -151,4 +152,43 @@ type Discrepancy struct {
 	Description string    `json:"description"`
 	Severity    string    `json:"severity"`
 	DetectedAt  time.Time `json:"detected_at"`
+}
+
+// SourceAnalysis contains analysis of page sources and references
+type SourceAnalysis struct {
+	TotalReferences    int                    `json:"total_references"`
+	UniqueReferences   int                    `json:"unique_references"`
+	DomainDistribution map[string]int         `json:"domain_distribution"`
+	TemplateUsage      map[string]int         `json:"template_usage"`
+	ReliabilityScore   float64                `json:"reliability_score"`
+	UnreliableSources  []UnreliableSource     `json:"unreliable_sources"`
+	DeadLinks          []DeadLink             `json:"dead_links"`
+}
+
+// Reference represents a single reference in the page
+type Reference struct {
+	Content     string `json:"content"`
+	URL         string `json:"url,omitempty"`
+	Domain      string `json:"domain,omitempty"`
+	Template    string `json:"template,omitempty"`
+	IsNamed     bool   `json:"is_named"`
+	Name        string `json:"name,omitempty"`
+	UsageCount  int    `json:"usage_count"`
+}
+
+// UnreliableSource represents a source flagged as potentially unreliable
+type UnreliableSource struct {
+	URL              string `json:"url"`
+	Domain           string `json:"domain"`
+	ReliabilityLevel string `json:"reliability_level"`
+	Reason           string `json:"reason"`
+	UsageCount       int    `json:"usage_count"`
+}
+
+// DeadLink represents a broken or inaccessible link
+type DeadLink struct {
+	URL        string `json:"url"`
+	HTTPStatus int    `json:"http_status"`
+	HasArchive bool   `json:"has_archive"`
+	ArchiveURL string `json:"archive_url,omitempty"`
 }
